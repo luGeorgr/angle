@@ -521,7 +521,7 @@ egl::ConfigSet DisplayWGL::generateConfigs()
     config.bindToTextureRGBA = (getAttrib(WGL_BIND_TO_TEXTURE_RGBA_ARB) == TRUE);
     config.colorBufferType   = EGL_RGB_BUFFER;
     config.configCaveat      = EGL_NONE;
-    config.conformant        = EGL_OPENGL_ES2_BIT | (supportsES3 ? EGL_OPENGL_ES3_BIT_KHR : 0);
+    config.conformant        = EGL_OPENGL_BIT | EGL_OPENGL_ES2_BIT | (supportsES3 ? EGL_OPENGL_ES3_BIT_KHR : 0);
     config.depthSize         = pixelFormatDescriptor.cDepthBits;
     config.level             = 0;
     config.matchNativePixmap = EGL_NONE;
@@ -533,7 +533,7 @@ egl::ConfigSet DisplayWGL::generateConfigs()
     config.nativeRenderable  = EGL_TRUE;  // Direct rendering
     config.nativeVisualID    = 0;
     config.nativeVisualType  = EGL_NONE;
-    config.renderableType    = EGL_OPENGL_ES2_BIT | (supportsES3 ? EGL_OPENGL_ES3_BIT_KHR : 0);
+    config.renderableType    = EGL_OPENGL_BIT | EGL_OPENGL_ES2_BIT | (supportsES3 ? EGL_OPENGL_ES3_BIT_KHR : 0);
     config.sampleBuffers     = 0;  // FIXME: enumerate multi-sampling
     config.samples           = 0;
     config.stencilSize       = pixelFormatDescriptor.cStencilBits;
