@@ -886,7 +886,7 @@ class TextureMtl::NativeTextureWrapperWithViewSupport : public NativeTextureWrap
     mtl::TextureRef createMipsSwizzleView(GLuint glLevel,
                                           uint32_t levels,
                                           MTLPixelFormat format,
-                                          const mtl::TextureSwizzleChannels &swizzle)
+                                          const MTLTextureSwizzleChannels &swizzle)
     {
         return mNativeTexture->createMipsSwizzleView(getNativeLevel(glLevel), levels, format,
                                                      swizzle);
@@ -961,6 +961,8 @@ angle::Result TextureMtl::ensureNativeStorageCreated(const gl::Context *context)
 
     // This should not be called from immutable texture.
     ASSERT(!isImmutableOrPBuffer());
+    ASSERT(mState.getType() != gl::TextureType::_2DMultisample);
+    ASSERT(mState.getType() != gl::TextureType::_2DMultisampleArray);
 
     ContextMtl *contextMtl = mtl::GetImpl(context);
 
@@ -972,7 +974,7 @@ angle::Result TextureMtl::ensureNativeStorageCreated(const gl::Context *context)
         angle::Format::InternalFormatToID(desc.format.info->sizedInternalFormat);
     mFormat = contextMtl->getPixelFormat(angleFormatId);
 
-    ANGLE_TRY(createNativeStorage(context, mState.getType(), mips, desc.size));
+    ANGLE_TRY(createNativeStorage(context, mState.getType(), mips, 0, desc.size));
 
     // Transfer data from defined images to actual texture object
     int numCubeFaces = static_cast<int>(mNativeTextureStorage->cubeFaces());
@@ -1012,8 +1014,10 @@ angle::Result TextureMtl::ensureNativeStorageCreated(const gl::Context *context)
 angle::Result TextureMtl::createNativeStorage(const gl::Context *context,
                                               gl::TextureType type,
                                               GLuint mips,
+                                              GLuint samples,
                                               const gl::Extents &size)
 {
+    ASSERT(samples == 0 || mips == 0);
     ContextMtl *contextMtl = mtl::GetImpl(context);
 
     // Create actual texture object:
@@ -1044,6 +1048,11 @@ angle::Result TextureMtl::createNativeStorage(const gl::Context *context,
             mSlices = size.depth;
             ANGLE_TRY(mtl::Texture::Make2DArrayTexture(
                 contextMtl, mFormat, size.width, size.height, mips, mSlices,
+                /** renderTargetOnly */ false, allowFormatView, &nativeTextureStorage));
+            break;
+        case gl::TextureType::_2DMultisample:
+            ANGLE_TRY(mtl::Texture::Make2DMSTexture(
+                contextMtl, mFormat, size.width, size.height, samples,
                 /** renderTargetOnly */ false, allowFormatView, &nativeTextureStorage));
             break;
         default:
@@ -1569,7 +1578,7 @@ angle::Result TextureMtl::setStorage(const gl::Context *context,
         angle::Format::InternalFormatToID(formatInfo.sizedInternalFormat);
     const mtl::Format &mtlFormat = contextMtl->getPixelFormat(angleFormatId);
 
-    return setStorageImpl(context, type, mipmaps, mtlFormat, size);
+    return setStorageImpl(context, type, mState.getImmutableLevels(), 0, mtlFormat, size);
 }
 
 angle::Result TextureMtl::setStorageExternalMemory(const gl::Context *context,
@@ -1591,13 +1600,17 @@ angle::Result TextureMtl::setStorageExternalMemory(const gl::Context *context,
 angle::Result TextureMtl::setStorageMultisample(const gl::Context *context,
                                                 gl::TextureType type,
                                                 GLsizei samples,
-                                                GLint internalformat,
+                                                GLint internalFormat,
                                                 const gl::Extents &size,
                                                 bool fixedSampleLocations)
 {
-    UNIMPLEMENTED();
+    ContextMtl *contextMtl               = mtl::GetImpl(context);
+    const gl::InternalFormat &formatInfo = gl::GetSizedInternalFormatInfo(internalFormat);
+    angle::FormatID angleFormatId =
+        angle::Format::InternalFormatToID(formatInfo.sizedInternalFormat);
+    const mtl::Format &mtlFormat = contextMtl->getPixelFormat(angleFormatId);
 
-    return angle::Result::Stop;
+    return setStorageImpl(context, type, 0, mState.getLevelZeroDesc().samples, mtlFormat, size);
 }
 
 angle::Result TextureMtl::setEGLImageTarget(const gl::Context *context,
@@ -1902,7 +1915,6 @@ angle::Result TextureMtl::bindToShader(const gl::Context *context,
 
     if (!mSwizzleStencilSamplingView)
     {
-#if ANGLE_MTL_SWIZZLE_AVAILABLE
         ContextMtl *contextMtl             = mtl::GetImpl(context);
         const angle::FeaturesMtl &features = contextMtl->getDisplay()->getFeatures();
 
@@ -1948,7 +1960,6 @@ angle::Result TextureMtl::bindToShader(const gl::Context *context,
                 format, swizzle);
         }
         else
-#endif  // ANGLE_MTL_SWIZZLE_AVAILABLE
         {
             mSwizzleStencilSamplingView = mState.isStencilMode()
                                               ? mViewFromBaseToMaxLevel->getStencilView()
@@ -2089,10 +2100,10 @@ angle::Result TextureMtl::redefineImage(const gl::Context *context,
     return angle::Result::Continue;
 }
 
-// If mipmaps = 0, this function will create full mipmaps texture.
 angle::Result TextureMtl::setStorageImpl(const gl::Context *context,
                                          gl::TextureType type,
-                                         size_t mipmaps,
+                                         GLuint mips,
+                                         GLuint samples,
                                          const mtl::Format &mtlFormat,
                                          const gl::Extents &size)
 {
@@ -2106,7 +2117,7 @@ angle::Result TextureMtl::setStorageImpl(const gl::Context *context,
 
     mFormat = mtlFormat;
 
-    ANGLE_TRY(createNativeStorage(context, type, mState.getImmutableLevels(), size));
+    ANGLE_TRY(createNativeStorage(context, type, mips, samples, size));
     ANGLE_TRY(createViewFromBaseToMaxLevel());
 
     return angle::Result::Continue;
@@ -2343,7 +2354,7 @@ angle::Result TextureMtl::setPerSliceSubImage(const gl::Context *context,
             CopyBufferToOriginalTextureIfDstIsAView(
                 contextMtl, blitEncoder, sourceBuffer, offset, pixelsRowPitch, pixelsDepthPitch,
                 mtlArea.size, image, slice, mtl::kZeroNativeMipLevel, mtlArea.origin,
-                mFormat.isPVRTC() ? mtl::kBlitOptionRowLinearPVRTC : MTLBlitOptionNone);
+                mFormat.isPVRTC() ? MTLBlitOptionRowLinearPVRTC : MTLBlitOptionNone);
         }
     }
     else

@@ -72,17 +72,21 @@ class VertexArrayVk : public VertexArrayImpl
                                  GLsizei vertexOrIndexCount,
                                  gl::DrawElementsType indexTypeOrInvalid,
                                  const void *indices,
+                                 vk::BufferHelper **indexBufferOut,
                                  uint32_t *indexCountOut);
 
     angle::Result handleLineLoopIndexIndirect(ContextVk *contextVk,
                                               gl::DrawElementsType glIndexType,
-                                              vk::BufferHelper *srcIndirectBuf,
+                                              vk::BufferHelper *srcIndexBuffer,
+                                              vk::BufferHelper *srcIndirectBuffer,
                                               VkDeviceSize indirectBufferOffset,
+                                              vk::BufferHelper **indexBufferOut,
                                               vk::BufferHelper **indirectBufferOut);
 
     angle::Result handleLineLoopIndirectDraw(const gl::Context *context,
                                              vk::BufferHelper *indirectBufferVk,
                                              VkDeviceSize indirectBufferOffset,
+                                             vk::BufferHelper **indexBufferOut,
                                              vk::BufferHelper **indirectBufferOut);
 
     const gl::AttribArray<VkBuffer> &getCurrentArrayBufferHandles() const
@@ -165,18 +169,15 @@ class VertexArrayVk : public VertexArrayImpl
 
     angle::Result convertVertexBufferGPU(ContextVk *contextVk,
                                          BufferVk *srcBuffer,
-                                         const gl::VertexBinding &binding,
-                                         size_t attribIndex,
-                                         const vk::Format &vertexFormat,
                                          VertexConversionBuffer *conversion,
-                                         bool compressed);
+                                         const angle::Format &srcFormat,
+                                         const angle::Format &dstFormat);
     angle::Result convertVertexBufferCPU(ContextVk *contextVk,
                                          BufferVk *srcBuffer,
-                                         const gl::VertexBinding &binding,
-                                         size_t attribIndex,
-                                         const vk::Format &vertexFormat,
                                          VertexConversionBuffer *conversion,
-                                         bool compress);
+                                         const angle::Format &srcFormat,
+                                         const angle::Format &dstFormat,
+                                         const VertexCopyFunction vertexLoadFunction);
 
     angle::Result syncDirtyAttrib(ContextVk *contextVk,
                                   const gl::VertexAttribute &attrib,
