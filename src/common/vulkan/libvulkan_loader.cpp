@@ -31,6 +31,7 @@ void *OpenLibVulkan()
     };
 
     constexpr SearchType kSearchTypes[] = {
+    SearchType::AlreadyLoaded,
 // On Android, Fuchsia and GGP we use the system libvulkan.
 #if defined(ANGLE_USE_CUSTOM_LIBVULKAN)
         SearchType::ModuleDir,
