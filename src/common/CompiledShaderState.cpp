@@ -204,7 +204,8 @@ void CompiledShaderState::buildCompiledShaderState(const ShHandle compilerHandle
 {
     if (isBinaryOutput)
     {
-        compiledBinary = sh::GetObjectBinaryBlob(compilerHandle);
+        if(compiledBinary.empty())
+            compiledBinary = sh::GetObjectBinaryBlob(compilerHandle);
     }
     else
     {

@@ -199,6 +199,39 @@ angle::Result CompileTask::compileImpl()
 angle::Result CompileTask::postTranslate()
 {
     const bool isBinaryOutput = mOutputType == SH_SPIRV_VULKAN_OUTPUT;
+    bool substitutedTranslatedShader = false;
+    const char *suffix               = "translated";
+    if (mFrontendFeatures.enableTranslatedShaderSubstitution.enabled)
+    {
+    // To support reading/writing compiled binaries (SPIR-V representation), need more file
+    // input/output facilities, and figure out the byte ordering of writing the 32-bit words to
+    // disk.
+        if (isBinaryOutput)
+        {
+            std::string substituteShaderPath = GetShaderDumpFilePath(mSourceHash, suffix);
+            sh::BinaryBlob substituteBinary;
+            if (angle::ReadFileToBinary(substituteShaderPath, &substituteBinary))
+            {
+                mCompiledState->compiledBinary = std::move(substituteBinary);
+                substitutedTranslatedShader      = true;
+                INFO() << "Translated shader substitute found, loading from "
+                    << substituteShaderPath;
+            }
+        }
+    }
+    else
+    {
+        std::string substituteShaderPath = GetShaderDumpFilePath(mSourceHash, suffix);
+
+        std::string substituteShader;
+        if (angle::ReadFileToString(substituteShaderPath, &substituteShader))
+        {
+            mCompiledState->translatedSource = std::move(substituteShader);
+            substitutedTranslatedShader      = true;
+            INFO() << "Translated shader substitute found, loading from "
+                   << substituteShaderPath;
+        }
+    }
     mCompiledState->buildCompiledShaderState(mCompilerHandle, isBinaryOutput);
 
     ASSERT(!mCompiledState->translatedSource.empty() || !mCompiledState->compiledBinary.empty());
@@ -227,39 +260,15 @@ angle::Result CompileTask::postTranslate()
         return angle::Result::Stop;
     }
 
-    bool substitutedTranslatedShader = false;
-    const char *suffix               = "translated";
-    if (mFrontendFeatures.enableTranslatedShaderSubstitution.enabled)
-    {
-        // To support reading/writing compiled binaries (SPIR-V representation), need more file
-        // input/output facilities, and figure out the byte ordering of writing the 32-bit words to
-        // disk.
-        if (isBinaryOutput)
-        {
-            INFO() << "Can not substitute compiled binary (SPIR-V) shaders yet";
-        }
-        else
-        {
-            std::string substituteShaderPath = GetShaderDumpFilePath(mSourceHash, suffix);
-
-            std::string substituteShader;
-            if (angle::ReadFileToString(substituteShaderPath, &substituteShader))
-            {
-                mCompiledState->translatedSource = std::move(substituteShader);
-                substitutedTranslatedShader      = true;
-                INFO() << "Translated shader substitute found, loading from "
-                       << substituteShaderPath;
-            }
-        }
-    }
-
     // Only dump translated shaders that have not been previously substituted. It would write the
     // same data back to the file.
     if (mFrontendFeatures.dumpTranslatedShaders.enabled && !substitutedTranslatedShader)
     {
         if (isBinaryOutput)
         {
-            INFO() << "Can not dump compiled binary (SPIR-V) shaders yet";
+            std::string dumpFile = GetShaderDumpFilePath(mSourceHash, suffix);
+            const sh::BinaryBlob &compiledBinary = mCompiledState->compiledBinary;
+            writeBinaryFile(dumpFile.c_str(), compiledBinary.data(),compiledBinary.size() * sizeof(uint32_t));
         }
         else
         {
