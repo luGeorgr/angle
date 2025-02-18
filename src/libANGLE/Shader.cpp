@@ -214,22 +214,9 @@ angle::Result CompileTask::postTranslate()
             {
                 mCompiledState->compiledBinary = std::move(substituteBinary);
                 substitutedTranslatedShader      = true;
-                INFO() << "Translated shader substitute found, loading from "
+                INFO() << "RR rendering Translated shader found, loading from "
                     << substituteShaderPath;
             }
-        }
-    }
-    else
-    {
-        std::string substituteShaderPath = GetShaderDumpFilePath(mSourceHash, suffix);
-
-        std::string substituteShader;
-        if (angle::ReadFileToString(substituteShaderPath, &substituteShader))
-        {
-            mCompiledState->translatedSource = std::move(substituteShader);
-            substitutedTranslatedShader      = true;
-            INFO() << "Translated shader substitute found, loading from "
-                   << substituteShaderPath;
         }
     }
     mCompiledState->buildCompiledShaderState(mCompilerHandle, isBinaryOutput);
@@ -259,7 +246,29 @@ angle::Result CompileTask::postTranslate()
         mInfoLog += "\nShared memory size exceeds GL_MAX_COMPUTE_SHARED_MEMORY_SIZE";
         return angle::Result::Stop;
     }
+    if (mFrontendFeatures.enableTranslatedShaderSubstitution.enabled)
+    {
+        // To support reading/writing compiled binaries (SPIR-V representation), need more file
+        // input/output facilities, and figure out the byte ordering of writing the 32-bit words to
+        // disk.
+        if (isBinaryOutput)
+        {
+            INFO() << "Can not substitute compiled binary (SPIR-V) shaders yet";
+        }
+        else
+        {
+            std::string substituteShaderPath = GetShaderDumpFilePath(mSourceHash, suffix);
 
+            std::string substituteShader;
+            if (angle::ReadFileToString(substituteShaderPath, &substituteShader))
+            {
+                mCompiledState->translatedSource = std::move(substituteShader);
+                substitutedTranslatedShader      = true;
+                INFO() << "Translated shader substitute found, loading from "
+                       << substituteShaderPath;
+            }
+        }
+    }
     // Only dump translated shaders that have not been previously substituted. It would write the
     // same data back to the file.
     if (mFrontendFeatures.dumpTranslatedShaders.enabled && !substitutedTranslatedShader)
