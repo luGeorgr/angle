@@ -199,6 +199,26 @@ angle::Result CompileTask::compileImpl()
 angle::Result CompileTask::postTranslate()
 {
     const bool isBinaryOutput = mOutputType == SH_SPIRV_VULKAN_OUTPUT;
+    bool substitutedTranslatedShader = false;
+    const char *suffix               = "translated";
+    if (mFrontendFeatures.enableTranslatedShaderSubstitution.enabled)
+    {
+    // To support reading/writing compiled binaries (SPIR-V representation), need more file
+    // input/output facilities, and figure out the byte ordering of writing the 32-bit words to
+    // disk.
+        if (isBinaryOutput)
+        {
+            std::string substituteShaderPath = GetShaderDumpFilePath(mSourceHash, suffix);
+            sh::BinaryBlob substituteBinary;
+            if (angle::ReadFileToBinary(substituteShaderPath, &substituteBinary))
+            {
+                mCompiledState->compiledBinary = std::move(substituteBinary);
+                substitutedTranslatedShader      = true;
+                INFO() << "RR rendering Translated shader found, loading from "
+                    << substituteShaderPath;
+            }
+        }
+    }
     mCompiledState->buildCompiledShaderState(mCompilerHandle, isBinaryOutput);
 
     ASSERT(!mCompiledState->translatedSource.empty() || !mCompiledState->compiledBinary.empty());
@@ -226,9 +246,6 @@ angle::Result CompileTask::postTranslate()
         mInfoLog += "\nShared memory size exceeds GL_MAX_COMPUTE_SHARED_MEMORY_SIZE";
         return angle::Result::Stop;
     }
-
-    bool substitutedTranslatedShader = false;
-    const char *suffix               = "translated";
     if (mFrontendFeatures.enableTranslatedShaderSubstitution.enabled)
     {
         // To support reading/writing compiled binaries (SPIR-V representation), need more file
@@ -252,14 +269,15 @@ angle::Result CompileTask::postTranslate()
             }
         }
     }
-
     // Only dump translated shaders that have not been previously substituted. It would write the
     // same data back to the file.
     if (mFrontendFeatures.dumpTranslatedShaders.enabled && !substitutedTranslatedShader)
     {
         if (isBinaryOutput)
         {
-            INFO() << "Can not dump compiled binary (SPIR-V) shaders yet";
+            std::string dumpFile = GetShaderDumpFilePath(mSourceHash, suffix);
+            const sh::BinaryBlob &compiledBinary = mCompiledState->compiledBinary;
+            writeBinaryFile(dumpFile.c_str(), compiledBinary.data(),compiledBinary.size() * sizeof(uint32_t));
         }
         else
         {

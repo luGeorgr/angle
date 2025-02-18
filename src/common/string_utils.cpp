@@ -155,7 +155,20 @@ bool HexStringToUInt(const std::string &input, unsigned int *uintOut)
     inStream >> std::hex >> *uintOut;
     return !inStream.fail();
 }
+bool ReadFileToBinary(const std::string &path, std::vector<uint32_t>* binaryOut) {
+    std::ifstream in_file(path.c_str(), std::ios::binary | std::ios::ate);
+    if (!in_file.is_open())
+        return false;
 
+    const size_t file_size = in_file.tellg();
+    if (file_size % sizeof(uint32_t) != 0)
+        return false;
+    binaryOut->resize(file_size/sizeof(uint32_t));
+
+    in_file.seekg(0, std::ios::beg);
+    in_file.read(reinterpret_cast<char *>(binaryOut->data()), file_size);
+    return !in_file.fail();
+}
 bool ReadFileToString(const std::string &path, std::string *stringOut)
 {
     std::ifstream inFile(path.c_str(), std::ios::binary);

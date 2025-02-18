@@ -385,7 +385,7 @@ void FillWithNullptr(T *array)
 }  // namespace angle
 
 void writeFile(const char *path, const void *data, size_t size);
-
+void writeBinaryFile(const char *path, const void *content, size_t size);
 // Get the underlying type. Useful for indexing into arrays with enum values by avoiding the clutter
 // of the extraneous static_cast<>() calls.
 // https://stackoverflow.com/a/8357462
