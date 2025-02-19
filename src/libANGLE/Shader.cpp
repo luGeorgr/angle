@@ -30,6 +30,7 @@
 #include "libANGLE/renderer/ShaderImpl.h"
 #include "libANGLE/trace.h"
 #include "platform/autogen/FrontendFeatures_autogen.h"
+#include "xxhash.h"
 
 namespace gl
 {
@@ -45,7 +46,9 @@ constexpr char kEShaderDumpPathPropertyName[] = "debug.angle.shader_dump_path";
 
 size_t ComputeShaderHash(const std::string &mergedSource)
 {
-    return std::hash<std::string>{}(mergedSource);
+    //return std::hash<std::string>{}(mergedSource);
+    constexpr unsigned int kSeed = 0xABCDEF96;
+    return XXH64(mergedSource.data(), mergedSource.size(), kSeed);
 }
 
 std::string GetShaderDumpFilePath(size_t shaderHash, const char *suffix)
