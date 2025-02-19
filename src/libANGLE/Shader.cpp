@@ -47,7 +47,7 @@ constexpr char kEShaderDumpPathPropertyName[] = "debug.angle.shader_dump_path";
 size_t ComputeShaderHash(const std::string &mergedSource)
 {
     //return std::hash<std::string>{}(mergedSource);
-    constexpr unsigned int kSeed = 0xABCDEF96;
+    constexpr unsigned int kSeed = 0xAE378B52;
     return XXH64(mergedSource.data(), mergedSource.size(), kSeed);
 }
 
