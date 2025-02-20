@@ -1490,7 +1490,7 @@ void writeFile(const char *path, const void *content, size_t size)
 void writeBinaryFile(const char *path, const void *content, size_t size)
 {
 #if !defined(ANGLE_ENABLE_WINDOWS_UWP)
-    FILE *file = fopen(path, "wb");
+    FILE *file = fopen(path, "wbx");
     if (!file)
     {
         UNREACHABLE();
