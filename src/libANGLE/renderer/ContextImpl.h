@@ -45,6 +45,7 @@ class ContextImpl : public GLImplFactory
 
     // Flush and finish.
     virtual angle::Result flush(const gl::Context *context)  = 0;
+    virtual angle::Result get_vulkan_allocator(const gl::Context *context, void* vmaAllocator);
     virtual angle::Result finish(const gl::Context *context) = 0;
 
     // Drawing methods.
