@@ -2944,6 +2944,10 @@ void Context::flush()
     ANGLE_CONTEXT_TRY(mImplementation->flush(this));
 }
 
+ void Context::get_vulkan_allocator(void* vmaAllocator) {
+     ANGLE_CONTEXT_TRY(mImplementation->get_vulkan_allocator(this, vmaAllocator));
+ }
+
 void Context::finish()
 {
     ANGLE_CONTEXT_TRY(mImplementation->finish(this));
